@@ -195,6 +195,11 @@ func TestDrawLabelAsPng(t *testing.T) {
 			dstPath: "text_multiline.png",
 		},
 		{
+			name:    "Text Field Multi-line Rotated",
+			srcPath: "text_multiline_rotated.zpl",
+			dstPath: "text_multiline_rotated.png",
+		},
+		{
 			name:     "Text with non-existing font that falls back to default",
 			srcPath:  "text_fallback_default.zpl",
 			dstPath:  "text_fallback_default.png",

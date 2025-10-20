@@ -2,6 +2,7 @@ package zebrash
 
 import (
 	"fmt"
+	"image/png"
 	"io"
 	"math"
 
@@ -106,5 +107,6 @@ func (d *Drawer) DrawLabelAsPng(label elements.LabelInfo, output io.Writer, opti
 		gCtx.DrawImage(img, (labelWidth-imageWidth)/2, 0)
 	}
 
-	return images.EncodeMonochrome(output, gCtx.Image())
+	// Encode as standard PNG to preserve anti-aliasing
+	return png.Encode(output, gCtx.Image())
 }
