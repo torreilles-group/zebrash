@@ -9,11 +9,13 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/ingridhq/zebrash"
 	"github.com/ingridhq/zebrash/drawers"
+	"github.com/signintech/gopdf"
 )
 
 func main() {
@@ -208,16 +210,82 @@ func handleLabelRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
+	// Check output format based on Accept header (Labelary API compatibility)
+	acceptHeader := r.Header.Get("Accept")
+	isPdf := strings.Contains(acceptHeader, "application/pdf")
+	
+	var responseData []byte
+	var contentType string
+	
+	if isPdf {
+		// Convert PNG to PDF
+		pdfData, err := convertPngToPdf(buf.Bytes(), widthMm, heightMm)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to generate PDF: %v", err), http.StatusInternalServerError)
+			return
+		}
+		responseData = pdfData
+		contentType = "application/pdf"
+	} else {
+		// Default PNG output
+		responseData = buf.Bytes()
+		contentType = "image/png"
+	}
+	
 	// Set response headers
-	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("X-Total-Count", strconv.Itoa(len(labels)))
 	w.WriteHeader(http.StatusOK)
 	
-	// Write image data
-	_, err = w.Write(buf.Bytes())
+	// Write response data
+	_, err = w.Write(responseData)
 	if err != nil {
 		log.Printf("Failed to write response: %v", err)
 	}
+}
+
+// convertPngToPdf converts PNG image bytes to PDF format
+func convertPngToPdf(pngData []byte, widthMm, heightMm float64) ([]byte, error) {
+	// Create temporary file for the PNG
+	tempFile := "/tmp/zebrash_temp.png"
+	err := os.WriteFile(tempFile, pngData, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write temporary PNG file: %w", err)
+	}
+	defer os.Remove(tempFile) // Clean up
+
+	// Convert mm to points (1 point = 1/72 inch, 1 inch = 25.4 mm)
+	widthPt := widthMm * 72 / 25.4
+	heightPt := heightMm * 72 / 25.4
+
+	// Create PDF
+	pdf := gopdf.GoPdf{}
+	pdf.Start(gopdf.Config{PageSize: gopdf.Rect{W: widthPt, H: heightPt}})
+	pdf.AddPage()
+
+	// Add image to PDF - scale to fit the page
+	err = pdf.Image(tempFile, 0, 0, &gopdf.Rect{W: widthPt, H: heightPt})
+	if err != nil {
+		return nil, fmt.Errorf("failed to add image to PDF: %w", err)
+	}
+
+	// Write PDF to temporary file
+	tempPdfFile := "/tmp/zebrash_temp.pdf"
+	err = pdf.WritePdf(tempPdfFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write PDF: %w", err)
+	}
+
+	// Read the PDF file
+	pdfData, err := os.ReadFile(tempPdfFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read PDF file: %w", err)
+	}
+
+	// Clean up
+	os.Remove(tempPdfFile)
+
+	return pdfData, nil
 }
 
 // rotateImage rotates an image by the specified degrees clockwise

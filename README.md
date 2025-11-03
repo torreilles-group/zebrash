@@ -84,6 +84,21 @@ curl --request POST http://localhost:3030/v1/printers/8dpmm/labels/4x6/0/ \
 
 Supported rotation values: `0`, `90`, `180`, `270` (degrees clockwise)
 
+#### Output Format
+
+By default, the API returns PNG images. To get PDF output, include the `Accept: application/pdf` header in your request:
+
+```bash
+# PNG output (default)
+curl --request POST http://localhost:3030/v1/printers/8dpmm/labels/4x6/0/ \
+  --data "^xa^cfa,50^fo100,100^fdHello World^fs^xz" > label.png
+
+# PDF output
+curl --request POST http://localhost:3030/v1/printers/8dpmm/labels/4x6/0/ \
+  --header "Accept: application/pdf" \
+  --data "^xa^cfa,50^fo100,100^fdHello World^fs^xz" > label.pdf
+```
+
 ### Health Check
 
 ```bash
